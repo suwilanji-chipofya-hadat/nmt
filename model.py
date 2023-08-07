@@ -1,83 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-NLP From Scratch: Translation with a Sequence to Sequence Network and Attention
-*******************************************************************************
-**Author**: `Sean Robertson <https://github.com/spro>`_
-
-This is the third and final tutorial on doing "NLP From Scratch", where we
-write our own classes and functions to preprocess the data to do our NLP
-modeling tasks. We hope after you complete this tutorial that you'll proceed to
-learn how `torchtext` can handle much of this preprocessing for you in the
-three tutorials immediately following this one.
-
-In this project we will be teaching a neural network to translate from
-French to English.
-
-::
-
-    [KEY: > input, = target, < output]
-
-    > il est en train de peindre un tableau .
-    = he is painting a picture .
-    < he is painting a picture .
-
-    > pourquoi ne pas essayer ce vin delicieux ?
-    = why not try that delicious wine ?
-    < why not try that delicious wine ?
-
-    > elle n est pas poete mais romanciere .
-    = she is not a poet but a novelist .
-    < she not not a poet but a novelist .
-
-    > vous etes trop maigre .
-    = you re too skinny .
-    < you re all alone .
-
-... to varying degrees of success.
-
-This is made possible by the simple but powerful idea of the `sequence
-to sequence network <https://arxiv.org/abs/1409.3215>`__, in which two
-recurrent neural networks work together to transform one sequence to
-another. An encoder network condenses an input sequence into a vector,
-and a decoder network unfolds that vector into a new sequence.
-
-.. figure:: /_static/img/seq-seq-images/seq2seq.png
-   :alt:
-
-To improve upon this model we'll use an `attention
-mechanism <https://arxiv.org/abs/1409.0473>`__, which lets the decoder
-learn to focus over a specific range of the input sequence.
-
-**Recommended Reading:**
-
-I assume you have at least installed PyTorch, know Python, and
-understand Tensors:
-
--  https://pytorch.org/ For installation instructions
--  :doc:`/beginner/deep_learning_60min_blitz` to get started with PyTorch in general
--  :doc:`/beginner/pytorch_with_examples` for a wide and deep overview
--  :doc:`/beginner/former_torchies_tutorial` if you are former Lua Torch user
-
-
-It would also be useful to know about Sequence to Sequence networks and
-how they work:
-
--  `Learning Phrase Representations using RNN Encoder-Decoder for
-   Statistical Machine Translation <https://arxiv.org/abs/1406.1078>`__
--  `Sequence to Sequence Learning with Neural
-   Networks <https://arxiv.org/abs/1409.3215>`__
--  `Neural Machine Translation by Jointly Learning to Align and
-   Translate <https://arxiv.org/abs/1409.0473>`__
--  `A Neural Conversational Model <https://arxiv.org/abs/1506.05869>`__
-
-You will also find the previous tutorials on
-:doc:`/intermediate/char_rnn_classification_tutorial`
-and :doc:`/intermediate/char_rnn_generation_tutorial`
-helpful as those concepts are very similar to the Encoder and Decoder
-models, respectively.
-
-**Requirements**
-"""
 from __future__ import unicode_literals, print_function, division
 from io import open
 import unicodedata
@@ -93,56 +13,6 @@ import numpy as np
 from torch.utils.data import TensorDataset, DataLoader, RandomSampler
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-######################################################################
-# Loading data files
-# ==================
-#
-# The data for this project is a set of many thousands of English to
-# French translation pairs.
-#
-# `This question on Open Data Stack
-# Exchange <https://opendata.stackexchange.com/questions/3888/dataset-of-sentences-translated-into-many-languages>`__
-# pointed me to the open translation site https://tatoeba.org/ which has
-# downloads available at https://tatoeba.org/eng/downloads - and better
-# yet, someone did the extra work of splitting language pairs into
-# individual text files here: https://www.manythings.org/anki/
-#
-# The English to French pairs are too big to include in the repository, so
-# download to ``data/eng-fra.txt`` before continuing. The file is a tab
-# separated list of translation pairs:
-#
-# ::
-#
-#     I am cold.    J'ai froid.
-#
-# .. Note::
-#    Download the data from
-#    `here <https://download.pytorch.org/tutorial/data.zip>`_
-#    and extract it to the current directory.
-
-######################################################################
-# Similar to the character encoding used in the character-level RNN
-# tutorials, we will be representing each word in a language as a one-hot
-# vector, or giant vector of zeros except for a single one (at the index
-# of the word). Compared to the dozens of characters that might exist in a
-# language, there are many many more words, so the encoding vector is much
-# larger. We will however cheat a bit and trim the data to only use a few
-# thousand words per language.
-#
-# .. figure:: /_static/img/seq-seq-images/word-encoding.png
-#    :alt:
-#
-#
-
-
-######################################################################
-# We'll need a unique index per word to use as the inputs and targets of
-# the networks later. To keep track of all this we will use a helper class
-# called ``Lang`` which has word → index (``word2index``) and index → word
-# (``index2word``) dictionaries, as well as a count of each word
-# ``word2count`` which will be used to replace rare words later.
-#
 
 SOS_token = 0
 EOS_token = 1
@@ -169,14 +39,6 @@ class Lang:
             self.word2count[word] += 1
 
 
-######################################################################
-# The files are all in Unicode, to simplify we will turn Unicode
-# characters to ASCII, make everything lowercase, and trim most
-# punctuation.
-#
-
-# Turn a Unicode string to plain ASCII, thanks to
-# https://stackoverflow.com/a/518232/2809427
 def unicodeToAscii(s):
     return ''.join(
         c for c in unicodedata.normalize('NFD', s)
@@ -191,23 +53,10 @@ def normalizeString(s):
     return s.strip()
 
 
-######################################################################
-# To read the data file we will split the file into lines, and then split
-# lines into pairs. The files are all English → Other Language, so if we
-# want to translate from Other Language → English I added the ``reverse``
-# flag to reverse the pairs.
-#
-
 def readLangs(lang1, lang2, reverse=False):
     print("Reading lines...")
-
-    # Read the file and split into lines
-    lines = open('data/%s-%s.txt' % (lang1, lang2), encoding='utf-8').\
-        read().strip().split('\n')
-
-    # Split every line into pairs and normalize
-    pairs = [[normalizeString(s) for s in l.split('\t')] for l in lines]
-
+    df = pd.read_csv("dataset.tsv", sep="\t")
+    pairs = list(zip(df["English"], df["Bemba"]))
     # Reverse pairs, make Lang instances
     if reverse:
         pairs = [list(reversed(p)) for p in pairs]
@@ -224,26 +73,15 @@ def readLangs(lang1, lang2, reverse=False):
 # Since there are a *lot* of example sentences and we want to train
 # something quickly, we'll trim the data set to only relatively short and
 # simple sentences. Here the maximum length is 10 words (that includes
-# ending punctuation) and we're filtering to sentences that translate to
-# the form "I am" or "He is" etc. (accounting for apostrophes replaced
+# ending punctuation) and we're filtering to sentences. (accounting for apostrophes replaced
 # earlier).
 #
 
-MAX_LENGTH = 10
+MAX_LENGTH = 128
 
-eng_prefixes = (
-    "i am ", "i m ",
-    "he is", "he s ",
-    "she is", "she s ",
-    "you are", "you re ",
-    "we are", "we re ",
-    "they are", "they re "
-)
 
 def filterPair(p):
-    return len(p[0].split(' ')) < MAX_LENGTH and \
-        len(p[1].split(' ')) < MAX_LENGTH and \
-        p[1].startswith(eng_prefixes)
+    return p
 
 
 def filterPairs(pairs):
@@ -272,7 +110,7 @@ def prepareData(lang1, lang2, reverse=False):
     print(output_lang.name, output_lang.n_words)
     return input_lang, output_lang, pairs
 
-input_lang, output_lang, pairs = prepareData('eng', 'fra', True)
+input_lang, output_lang, pairs = prepareData('eng', 'bmb', True)
 print(random.choice(pairs))
 
 
@@ -289,17 +127,12 @@ print(random.choice(pairs))
 # consisting of two RNNs called the encoder and decoder. The encoder reads
 # an input sequence and outputs a single vector, and the decoder reads
 # that vector to produce an output sequence.
-#
-# .. figure:: /_static/img/seq-seq-images/seq2seq.png
-#    :alt:
-#
 # Unlike sequence prediction with a single RNN, where every input
 # corresponds to an output, the seq2seq model frees us from sequence
 # length and order, which makes it ideal for translation between two
 # languages.
 #
-# Consider the sentence ``Je ne suis pas le chat noir`` → ``I am not the
-# black cat``. Most of the words in the input sentence have a direct
+# Consider the sentence ``Uleya kwisa`` → ``where are you going``. Most of the words in the input sentence have a direct
 # translation in the output sentence, but are in slightly different
 # orders, e.g. ``chat noir`` and ``black cat``. Because of the ``ne/pas``
 # construction there is also one more word in the input sentence. It would
@@ -320,10 +153,6 @@ print(random.choice(pairs))
 # every word from the input sentence. For every input word the encoder
 # outputs a vector and a hidden state, and uses the hidden state for the
 # next input word.
-#
-# .. figure:: /_static/img/seq-seq-images/encoder-network.png
-#    :alt:
-#
 #
 
 class EncoderRNN(nn.Module):
@@ -363,10 +192,6 @@ class EncoderRNN(nn.Module):
 # token, and the first hidden state is the context vector (the encoder's
 # last hidden state).
 #
-# .. figure:: /_static/img/seq-seq-images/decoder-network.png
-#    :alt:
-#
-#
 
 class DecoderRNN(nn.Module):
     def __init__(self, hidden_size, output_size):
@@ -405,13 +230,6 @@ class DecoderRNN(nn.Module):
         return output, hidden
 
 ######################################################################
-# I encourage you to train and observe the results of this model, but to
-# save space we'll be going straight for the gold and introducing the
-# Attention Mechanism.
-#
-
-
-######################################################################
 # Attention Decoder
 # ^^^^^^^^^^^^^^^^^
 #
@@ -425,10 +243,6 @@ class DecoderRNN(nn.Module):
 # (called ``attn_applied`` in the code) should contain information about
 # that specific part of the input sequence, and thus help the decoder
 # choose the right output words.
-#
-# .. figure:: https://i.imgur.com/1152PYf.png
-#    :alt:
-#
 # Calculating the attention weights is done with another feed-forward
 # layer ``attn``, using the decoder's input and hidden state as inputs.
 # Because there are sentences of all sizes in the training data, to
@@ -437,8 +251,6 @@ class DecoderRNN(nn.Module):
 # to. Sentences of the maximum length will use all the attention weights,
 # while shorter sentences will only use the first few.
 #
-# .. figure:: /_static/img/seq-seq-images/attention-decoder-network.png
-#    :alt:
 #
 #
 # Bahdanau attention, also known as additive attention, is a commonly used
@@ -556,7 +368,7 @@ def tensorsFromPair(pair):
     return (input_tensor, target_tensor)
 
 def get_dataloader(batch_size):
-    input_lang, output_lang, pairs = prepareData('eng', 'fra', True)
+    input_lang, output_lang, pairs = prepareData('eng', 'bmb', True)
 
     n = len(pairs)
     input_ids = np.zeros((n, MAX_LENGTH), dtype=np.int32)
@@ -838,35 +650,4 @@ def evaluateAndShowAttention(input_sentence):
     showAttention(input_sentence, output_words, attentions[0, :len(output_words), :])
 
 
-evaluateAndShowAttention('il n est pas aussi grand que son pere')
-
-evaluateAndShowAttention('je suis trop fatigue pour conduire')
-
-evaluateAndShowAttention('je suis desole si c est une question idiote')
-
-evaluateAndShowAttention('je suis reellement fiere de vous')
-
-
-######################################################################
-# Exercises
-# =========
-#
-# -  Try with a different dataset
-#
-#    -  Another language pair
-#    -  Human → Machine (e.g. IOT commands)
-#    -  Chat → Response
-#    -  Question → Answer
-#
-# -  Replace the embeddings with pretrained word embeddings such as ``word2vec`` or
-#    ``GloVe``
-# -  Try with more layers, more hidden units, and more sentences. Compare
-#    the training time and results.
-# -  If you use a translation file where pairs have two of the same phrase
-#    (``I am test \t I am test``), you can use this as an autoencoder. Try
-#    this:
-#
-#    -  Train as an autoencoder
-#    -  Save only the Encoder network
-#    -  Train a new Decoder for translation from there
-#
+evaluateAndShowAttention('Lesa afya ukaye ku mulu')
